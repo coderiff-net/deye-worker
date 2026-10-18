@@ -1,0 +1,38 @@
+# Normalize line endings: Git decides text vs binary, and text files are
+# stored in the repo AND checked out with LF, on every OS (including Windows).
+* text=auto eol=lf
+
+# Explicit text files (belt and braces in case auto-detection guesses wrong)
+*.ts        text eol=lf
+*.mts       text eol=lf
+*.js        text eol=lf
+*.mjs       text eol=lf
+*.json      text eol=lf
+*.jsonc     text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.sh        text eol=lf
+.editorconfig  text eol=lf
+.gitignore     text eol=lf
+.gitattributes text eol=lf
+.prettierrc    text eol=lf
+
+# Windows-only scripts must keep CRLF or cmd.exe can misbehave
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
+
+# Binary files: never touch line endings, never try to diff/merge as text
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.woff  binary
+*.woff2 binary
+*.zip   binary
+
+# Generated files: collapse in GitHub diffs and exclude from language stats
+worker-configuration.d.ts linguist-generated=true
+package-lock.json         linguist-generated=true

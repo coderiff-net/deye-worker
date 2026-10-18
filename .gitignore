@@ -1,0 +1,50 @@
+# ---------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------
+node_modules/
+
+# ---------------------------------------------------------------
+# Wrangler / Cloudflare local state
+# ---------------------------------------------------------------
+# Local simulation state (KV, D1, R2, cache...) and build temp files
+.wrangler/
+
+# Local secrets for `wrangler dev` (e.g. DEYE_API_KEY=...). NEVER commit.
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# Generic env files, same rule
+.env
+.env.*
+!.env.example
+
+# ---------------------------------------------------------------
+# Build / test output
+# ---------------------------------------------------------------
+dist/
+coverage/
+*.tsbuildinfo
+*.tgz
+
+# ---------------------------------------------------------------
+# Logs and runtime files
+# ---------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+.npm/
+.eslintcache
+
+# ---------------------------------------------------------------
+# OS / editor noise (Windows, macOS, Linux)
+# ---------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+*~
+*.swp
+.vscode/
+.idea/
