@@ -1,19 +1,21 @@
 info:
-  name: station-info
+  name: list-devices
   type: http
-  seq: 4
+  seq: 1
 
 http:
   method: POST
-  url: "{{baseUrl}}/v1.0/station/latest"
+  url: "{{deyeBaseUrl}}/v1.0/station/device"
   headers:
     - name: Authorization
-      value: Bearer   {{dynamicAccessToken}}
+      value: Bearer   {{deyeDynamicAccessToken}}
   body:
     type: json
     data: |-
       {
-        "stationId": "{{stationId}}"
+        "page": 1, 
+        "size": 10, 
+        "stationIds": ["{{deyeStationId}}"]
       }
   auth: inherit
 

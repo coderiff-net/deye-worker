@@ -1,0 +1,24 @@
+info:
+  name: thermo-set-manual
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: https://www.ariston-net.remotethermo.com/api/v2/velis/medPlantData/{{aristonGateway}}/mode
+  headers:
+    - name: ar.authToken
+      value: "{{aristonDynamicAccessToken}}"
+  body:
+    type: json
+    data: |-
+      {
+        "new": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

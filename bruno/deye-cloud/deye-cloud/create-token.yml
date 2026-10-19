@@ -5,28 +5,28 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/v1.0/account/token?appId={{appId}}"
+  url: "{{deyeBaseUrl}}/v1.0/account/token?appId={{deyeAppId}}"
   headers:
     - name: Content-Type
       value: application/json
   params:
     - name: appId
-      value: "{{appId}}"
+      value: "{{deyeAppId}}"
       type: query
   body:
     type: json
     data: |-
       {
-        "appSecret": "{{appSecret}}",
-        "email": "{{email}}",
-        "password": "{{password}}"
+        "appSecret": "{{deyeAppSecret}}",
+        "email": "{{deyeEmail}}",
+        "password": "{{deyePassword}}"
       }
   auth: inherit
 
 runtime:
   scripts:
     - type: after-response
-      code: bru.setVar("dynamicAccessToken", res.body.accessToken);
+      code: bru.setVar("deyeDynamicAccessToken", res.body.accessToken);
 
 settings:
   encodeUrl: false

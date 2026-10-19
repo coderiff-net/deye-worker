@@ -1,0 +1,30 @@
+info:
+  name: create-token
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: https://www.ariston-net.remotethermo.com/api/v2/accounts/login
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "usr": "{{aristonEmail}}",
+        "pwd": "{{aristonPassword}}"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: bru.setVar("aristonDynamicAccessToken", res.body.token);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
