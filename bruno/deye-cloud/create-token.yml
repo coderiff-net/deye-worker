@@ -1,0 +1,35 @@
+info:
+  name: create-token
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/v1.0/account/token?appId={{appId}}"
+  headers:
+    - name: Content-Type
+      value: application/json
+  params:
+    - name: appId
+      value: "{{appId}}"
+      type: query
+  body:
+    type: json
+    data: |-
+      {
+        "appSecret": "{{appSecret}}",
+        "email": "{{email}}",
+        "password": "{{password}}"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: bru.setVar("dynamicAccessToken", res.body.accessToken);
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

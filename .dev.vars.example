@@ -1,0 +1,8 @@
+# Copy this file to .dev.vars and replace every placeholder.
+# Never commit .dev.vars or share its contents.
+PROXY_TEST_TOKEN=replace-with-a-long-random-value
+DEYE_APP_ID=your-deye-application-id
+DEYE_APP_SECRET=your-deye-application-secret
+DEYE_EMAIL=your-deye-cloud-account-email
+DEYE_PASSWORD=your-deye-cloud-account-password
+DEYE_BASE_URL=https://eu1-developer.deyecloud.com/v1.0

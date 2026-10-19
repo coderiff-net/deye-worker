@@ -1,0 +1,20 @@
+name: live
+variables:
+  - name: baseUrl
+    value: https://eu1-developer.deyecloud.com
+    description: ""
+  - name: appId
+    value: "202610182134104"
+    description: ""
+  - name: email
+    value: dmsanz@gmail.com
+    description: ""
+  - secret: true
+    name: appSecret
+    description: Secret created at https://developer.deyecloud.com/app
+  - secret: true
+    name: password
+    description: Deye account password SHA256 encrypted
+  - name: stationId
+    value: "62755045"
+    description: ""
