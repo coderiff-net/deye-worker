@@ -4,7 +4,7 @@
 
 SASW Energy Worker helps manage energy use at home through secure APIs. Its first job checks Deye solar production and an Ariston water heater every 15 minutes during daytime. It may switch the heater to manual mode when there is enough solar energy and the water can be heated further. It also enables Eco mode when the water reaches 72 °C. The project can grow into other home energy controls through secure APIs.
 
-`GET /` now serves a small status page with a **Check now** button. The latest check's readings and outcome appear on that page. `POST /check` invokes the same runner manually, including at night; the scheduled handler still runs without an HTTP request. Protect the whole Worker with Cloudflare Access and allow only your account before deploying the manual endpoint.
+The deployed website is [https://sasw-energy-worker.coderiff.workers.dev/](https://sasw-energy-worker.coderiff.workers.dev/). It is protected by Cloudflare Access, so an authorized user must sign in before opening it or invoking the manual check. `GET /` serves a small status page with a **Check now** button. `POST /check` invokes the same runner manually, including at night; the scheduled handler still runs without an HTTP request.
 
 ## Requirements
 
@@ -123,7 +123,7 @@ Tokens are requested afresh on each run and are never cached. Invalid or unavail
 
 ## Manual check and results
 
-After configuring [Cloudflare Access for the entire Worker](https://developers.cloudflare.com/workers/configuration/cloudflare-access/), visit its URL and sign in. The page shows the most recent completed check, including solar power, battery charge, water temperature, Eco state, and the decision. Click **Check now** to run the check immediately. The page calls `POST /check`; visiting or refreshing the page only reads `GET /status` and does not contact Deye or Ariston. The POST requires a same-origin browser request, in addition to Access authentication. The page stores no API tokens.
+Open [the protected website](https://sasw-energy-worker.coderiff.workers.dev/) and sign in through [Cloudflare Access](https://developers.cloudflare.com/workers/configuration/cloudflare-access/). **Latest check** shows the most recent completed run from either the scheduled cron or the **Check now** button. It includes solar power, battery charge, water temperature, Eco state, the decision, and whether the run was scheduled or manual. A cron invocation skipped outside daytime hours, or a request declined because another run is active or the cooldown has not passed, does not replace the latest completed result. Click **Check now** to request a run immediately. The page calls `POST /check`; visiting or refreshing the page only reads `GET /status` and does not contact Deye or Ariston. The POST requires a same-origin browser request, in addition to Access authentication. The page stores no API tokens.
 
 One SQLite-backed Durable Object coordinates scheduled and manual checks. It allows one run at a time and starts a 10-minute cooldown when a run begins. A request during a run or cooldown is skipped before either remote API is contacted. The last completed result and last start time are stored there, so a page refresh or Worker restart does not erase them. A manual check can cause the next scheduled check to skip due to the shared cooldown. The logs still record each scheduled skip.
 
