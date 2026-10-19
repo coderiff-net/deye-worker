@@ -2,9 +2,9 @@
 
 ## Overview
 
-SASW Energy Worker helps manage energy use at home through secure APIs. Its first job checks Deye solar production and an Ariston water heater every 10 minutes during daytime. It may switch the heater to manual mode when there is enough solar energy and the water can be heated further. It also enables Eco mode when the water reaches 72 °C. The project can grow into other home energy controls through secure APIs.
+SASW Energy Worker helps manage energy use at home through secure APIs. Its first job checks Deye solar production and an Ariston water heater every 15 minutes during daytime. It may switch the heater to manual mode when there is enough solar energy and the water can be heated further. It also enables Eco mode when the water reaches 72 °C. The project can grow into other home energy controls through secure APIs.
 
-The Worker also responds to `GET /` with `Hello World!` as a basic status endpoint. The scheduled handler performs the energy check; an HTTP request is not needed to wake it.
+`GET /` now serves a small status page with a **Check now** button. The latest check's readings and outcome appear on that page. `POST /check` invokes the same runner manually, including at night; the scheduled handler still runs without an HTTP request. Protect the whole Worker with Cloudflare Access and allow only your account before deploying the manual endpoint.
 
 ## Requirements
 
@@ -101,15 +101,15 @@ The Deye and Ariston credentials are for the running Worker, so add them to Clou
 
 ## Scheduled energy check
 
-Cloudflare Cron Triggers invoke the `scheduled()` handler; they do not require an HTTP request to wake the Worker. This project configures a trigger every 10 minutes from 06:00 through 21:50 UTC in `wrangler.jsonc`:
+Cloudflare Cron Triggers invoke the `scheduled()` handler; they do not require an HTTP request to wake the Worker. This project configures a trigger every 15 minutes from 06:00 through 21:45 UTC in `wrangler.jsonc`:
 
 ```jsonc
 "triggers": {
-  "crons": ["*/10 6-21 * * *"]
+  "crons": ["*/15 6-21 * * *"]
 }
 ```
 
-Cron expressions use UTC, while the desired operating window is 08:00 to 22:00 in Europe/Madrid. The scheduled handler checks Madrid local time and skips outside that window. The broad UTC range covers both summer and winter time; around the window edges, a few scheduled invocations can occur without making API calls.
+Cron expressions use UTC, while the desired operating window is 08:00 to 22:00 in Europe/Madrid. The scheduled handler checks Madrid local time and skips outside that window. The broad UTC range covers both summer and winter time; around the window edges, a few scheduled invocations can occur without making API calls. Manual checks can run at any hour.
 
 During an active run, the Worker:
 
@@ -119,16 +119,24 @@ During an active run, the Worker:
 4. Otherwise, skips when Deye `generationPower` is 1,500 W or less, or `batterySOC` is 95% or less. This deliberately includes the 90–95% gap.
 5. Skips when Ariston `temp` is 64 °C or higher, or `eco` is `false`. If `temp` is below 64 °C and `eco` is `true`, posts `{"new":1}` to `medPlantData/<gateway>/mode`.
 
-Tokens are requested afresh on each daytime run and are never cached. Invalid or unavailable readings prevent the manual-mode change; a valid Ariston reading can still trigger the 72 °C Eco rule if Deye fails. Each invocation logs one `energy-check` entry with the available readings and a `skipped`, `dry_run`, `changed`, or `failed` outcome. Tokens, passwords, and full upstream responses are not logged.
+Tokens are requested afresh on each run and are never cached. Invalid or unavailable readings prevent the manual-mode change; a valid Ariston reading can still trigger the 72 °C Eco rule if Deye fails. Each invocation logs one `energy-check` entry with the available readings and a `skipped`, `dry_run`, `changed`, or `failed` outcome. Tokens, passwords, and full upstream responses are not logged.
+
+## Manual check and results
+
+After configuring [Cloudflare Access for the entire Worker](https://developers.cloudflare.com/workers/configuration/cloudflare-access/), visit its URL and sign in. The page shows the most recent completed check, including solar power, battery charge, water temperature, Eco state, and the decision. Click **Check now** to run the check immediately. The page calls `POST /check`; visiting or refreshing the page only reads `GET /status` and does not contact Deye or Ariston. The POST requires a same-origin browser request, in addition to Access authentication. The page stores no API tokens.
+
+One SQLite-backed Durable Object coordinates scheduled and manual checks. It allows one run at a time and starts a 10-minute cooldown when a run begins. A request during a run or cooldown is skipped before either remote API is contacted. The last completed result and last start time are stored there, so a page refresh or Worker restart does not erase them. A manual check can cause the next scheduled check to skip due to the shared cooldown. The logs still record each scheduled skip.
+
+If Access is disabled for this Worker, the manual endpoint becomes reachable without the intended sign-in. Verify **All traffic** is protected in **Workers & Pages > your Worker > Access**. The scheduled trigger continues independently of browser authentication.
 
 ## Local test plan
 
-1. Run `npm test -- --run`. These tests mock both remote APIs and check the decision boundaries, the Eco override, and the outbound request shapes without touching a real device.
+1. Run `npm test -- --run`. These tests mock both remote APIs and check the decision boundaries, the Eco override, the page response, and the outbound request shapes without touching a real device.
 2. Fill `.dev.vars` with your local values, including the SHA-256 Deye password digest. Leave `DRY_RUN=true`.
-3. Run `npm run dev` and confirm `GET /` returns `Hello World!`.
+3. Run `npm run dev` and open `GET /`. Confirm the status page loads. Access is applied to the deployed Worker, so the local page itself has no Cloudflare sign-in.
 4. Open Wrangler's Local Explorer and invoke the scheduled handler with a time inside 08:00–22:00 Europe/Madrid. Local development does not automatically fire Cron Triggers. Review the `energy-check` log: it should show the readings and a skip reason, `would_set_mode_1`, or `would_enable_eco`.
-5. Invoke it with a time outside the window and confirm the `outside_day_hours` log appears without API calls. Use the Bruno requests to compare the Deye and Ariston readings if an upstream call fails.
-6. Only when you deliberately want to verify a live mode change, set `DRY_RUN=false`, run during qualifying conditions, and confirm the `changed` log and the heater's state.
+5. Invoke it with a time outside the window and confirm the `outside_day_hours` log appears without API calls. Use the Bruno requests to compare the Deye and Ariston readings if an upstream call fails. Scheduled runs use the same 10-minute cooldown as manual runs, so allow time between these checks.
+6. Use **Check now** with `DRY_RUN=true` and confirm the page shows the result. Repeating within 10 minutes should be declined without another upstream request. Only when you deliberately want to verify a live mode change, set `DRY_RUN=false`, run during qualifying conditions, and confirm the `changed` log and the heater's state.
 
 The Local Explorer can also invoke a scheduled handler through `/cdn-cgi/local/scheduled`, but its time picker is more useful for checking both sides of the Madrid time window. In production, inspect the Worker's **Observability > Logs** view for the same `energy-check` entries.
 

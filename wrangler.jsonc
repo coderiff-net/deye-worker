@@ -12,7 +12,13 @@
 	},
 	"upload_source_maps": true,
 	"triggers": {
-		"crons": ["*/10 6-21 * * *"]
+		"crons": ["*/15 6-21 * * *"]
+	},
+	"durable_objects": {
+		"bindings": [{ "name": "ENERGY_RUNNER", "class_name": "EnergyRunner" }]
+	},
+	"exports": {
+		"EnergyRunner": { "type": "durable-object", "storage": "sqlite" }
 	},
 	/**
 	 * Smart Placement

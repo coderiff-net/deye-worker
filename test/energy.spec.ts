@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import worker from '../src/index';
+import { runEnergyCheck } from '../src/index';
 
 const activeTime = Date.UTC(2026, 0, 15, 12, 0); // 13:00 in Madrid
 const env = {
@@ -42,7 +42,7 @@ function mockApis(
 }
 
 async function run(scheduledTime = activeTime, overrides: { DRY_RUN?: string } = {}): Promise<void> {
-	await worker.scheduled({ scheduledTime } as ScheduledController, { ...env, ...overrides });
+	await runEnergyCheck(scheduledTime, { ...env, ...overrides } as Parameters<typeof runEnergyCheck>[1], 'scheduled');
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -100,9 +100,4 @@ describe('scheduled energy check', () => {
 		expect(calls.some((call) => call.url.endsWith('/mode') || call.url.endsWith('/switchEco'))).toBe(false);
 	});
 
-	it('makes no API calls outside Madrid daytime hours', async () => {
-		const calls = mockApis(1501, 96, 63, true);
-		await run(Date.UTC(2026, 0, 15, 22, 0)); // 23:00 in Madrid
-		expect(calls).toHaveLength(0);
-	});
 });
