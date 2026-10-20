@@ -21,6 +21,8 @@ function mockApis(
 	temperature: number,
 	eco: boolean,
 	deyeFails = false,
+	consumptionPower = 0,
+	reqTemp = 67,
 ): Call[] {
 	const calls: Call[] = [];
 	vi.stubGlobal(
@@ -30,10 +32,10 @@ function mockApis(
 			if (url.includes('/account/token')) return Response.json({ success: true, accessToken: 'deye-token' });
 			if (url.endsWith('/station/latest')) {
 				if (deyeFails) return Response.json({ error: 'unavailable' }, { status: 502 });
-				return Response.json({ success: true, generationPower, batterySOC });
+				return Response.json({ success: true, generationPower, consumptionPower, batterySOC });
 			}
 			if (url.endsWith('/accounts/login')) return Response.json({ token: 'ariston-token' });
-			if (url.endsWith('/medPlantData//gateway')) return Response.json({ temp: temperature, eco });
+			if (url.endsWith('/medPlantData//gateway')) return Response.json({ temp: temperature, reqTemp, eco });
 			if (url.endsWith('/switchEco') || url.endsWith('/mode')) return Response.json({ ok: true });
 			throw new Error(`Unexpected request: ${url}`);
 		}),
@@ -48,8 +50,8 @@ async function run(scheduledTime = activeTime, overrides: { DRY_RUN?: string } =
 afterEach(() => vi.unstubAllGlobals());
 
 describe('scheduled energy check', () => {
-	it('enables Eco at 72 C even when solar production is low', async () => {
-		const calls = mockApis(520, 87, 72, false);
+	it('enables Eco at reqTemp even when solar production is low', async () => {
+		const calls = mockApis(520, 87, 67, false);
 		await run();
 		const ecoPost = calls.find((call) => call.url.endsWith('/switchEco'));
 		expect(ecoPost?.init.method).toBe('POST');
@@ -58,7 +60,7 @@ describe('scheduled energy check', () => {
 		expect(calls.some((call) => call.url.endsWith('/mode'))).toBe(false);
 	});
 
-	it('enables Eco at 72 C even when Deye is unavailable', async () => {
+	it('enables Eco at reqTemp even when Deye is unavailable', async () => {
 		const calls = mockApis(0, 0, 72, false, true);
 		await run();
 		expect(calls.some((call) => call.url.endsWith('/switchEco'))).toBe(true);
@@ -70,8 +72,8 @@ describe('scheduled energy check', () => {
 		expect(calls.some((call) => call.url.endsWith('/switchEco') || call.url.endsWith('/mode'))).toBe(false);
 	});
 
-	it('sets manual mode only when all solar and water conditions qualify', async () => {
-		const calls = mockApis(1501, 96, 63, true);
+	it('sets manual mode only when net surplus and water conditions qualify', async () => {
+		const calls = mockApis(1501, 96, 63, true, false, 900);
 		await run();
 		const modePost = calls.find((call) => call.url.endsWith('/mode'));
 		expect(modePost?.init.method).toBe('POST');
@@ -84,12 +86,12 @@ describe('scheduled energy check', () => {
 	});
 
 	it.each([
-		[1500, 96, 63, true],
+		[1000, 96, 63, true, 500],
 		[1501, 95, 63, true],
-		[1501, 96, 64, true],
+		[1501, 96, 67, true],
 		[1501, 96, 63, false],
-	])('does not change the heater for conservative boundary conditions', async (power, soc, temp, eco) => {
-		const calls = mockApis(power, soc, temp, eco);
+	])('does not change the heater for conservative boundary conditions', async (power, soc, temp, eco, consumption = 0) => {
+		const calls = mockApis(power, soc, temp, eco, false, consumption);
 		await run();
 		expect(calls.some((call) => call.url.endsWith('/mode') || call.url.endsWith('/switchEco'))).toBe(false);
 	});

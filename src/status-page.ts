@@ -30,13 +30,13 @@ export const STATUS_PAGE = `<!doctype html>
     const message = document.getElementById('message');
     const result = document.getElementById('result');
     const labels = {
-      enabled_eco: 'Eco mode enabled', set_mode_1: 'Heating mode set to 1',
-      would_enable_eco: 'Dry run: would enable Eco mode',
+      enabled_eco: 'Eco mode enabled at the requested temperature', set_mode_1: 'Heating mode set to 1',
+      would_enable_eco: 'Dry run: would enable Eco mode at the requested temperature',
       would_set_mode_1: 'Dry run: would set heating mode to 1',
-      already_eco_at_72c: 'Water is at least 72 °C; Eco mode is already on',
-      solar_at_or_below_1500w: 'Solar production is 1,500 W or lower',
+      already_eco_at_req_temp: 'Water is at or above reqTemp; Eco mode is already on',
+      water_at_or_above_req_temp: 'Water is at or above reqTemp; manual mode is not needed',
+      net_surplus_at_or_below_500w: 'Net solar surplus is 500 W or lower',
       battery_at_or_below_95pct: 'Battery charge is 95% or lower',
-      water_at_or_above_64c: 'Water is at least 64 °C',
       eco_disabled: 'Eco mode is off', outside_day_hours: 'Outside scheduled daytime hours',
       already_running: 'A check is already running', cooldown: 'Waiting for the 10-minute cooldown'
     };
@@ -56,9 +56,14 @@ export const STATUS_PAGE = `<!doctype html>
         addRow('Started by', item.source === 'manual' ? 'Manual button' : 'Schedule');
         addRow('Outcome', item.outcome.replace('_', ' '));
         addRow('Details', labels[item.reason] || item.reason.replaceAll('_', ' '));
-        if (item.generationPower !== undefined) addRow('Solar production', item.generationPower + ' W');
+        if (item.generationPower !== undefined) addRow('Solar generation', item.generationPower + ' W');
+        if (item.consumptionPower !== undefined) addRow('Home consumption', item.consumptionPower + ' W');
+        if (item.netSurplus !== undefined) addRow('Net solar surplus (threshold: > ' + (item.thresholds?.netSurplusAboveW ?? 500) + ' W)', item.netSurplus + ' W');
         if (item.batterySOC !== undefined) addRow('Battery charge', item.batterySOC + '%');
         if (item.temperature !== undefined) addRow('Water temperature', item.temperature + ' °C');
+        if (item.reqTemp !== undefined) addRow('Eco threshold (reqTemp)', item.reqTemp + ' C');
+        addRow('Manual mode battery threshold', '> ' + (item.thresholds?.batterySOCAbovePercent ?? 95) + '%');
+        addRow('Manual mode temperature threshold', 'Below reqTemp (' + item.reqTemp + ' C)');
         if (item.eco !== undefined) addRow('Eco mode', item.eco ? 'On' : 'Off');
       } else addRow('Status', 'No check recorded yet');
       if (status.nextAllowedAt) addRow('Next allowed', localTime(status.nextAllowedAt));

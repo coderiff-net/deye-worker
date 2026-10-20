@@ -16,8 +16,11 @@ interface WorkerEnv {
 
 type Readings = {
   generationPower?: number;
+  consumptionPower?: number;
+  netSurplus?: number;
   batterySOC?: number;
   temperature?: number;
+  reqTemp?: number;
   eco?: boolean;
 };
 
@@ -26,6 +29,12 @@ type CheckResult = Readings & {
   source: "scheduled" | "manual";
   outcome: "skipped" | "changed" | "dry_run" | "failed";
   reason: string;
+  thresholds: {
+    ecoAtReqTemp: true;
+    netSurplusAboveW: number;
+    batterySOCAbovePercent: number;
+    manualModeBelowReqTemp: true;
+  };
   status?: number;
 };
 
@@ -39,9 +48,10 @@ type RunResponse =
   | { accepted: true; result: CheckResult; status: RunnerStatus }
   | { accepted: false; reason: "already_running" | "cooldown"; status: RunnerStatus };
 
-type DeyeReading = { generationPower: number; batterySOC: number };
+type DeyeReading = { generationPower: number; consumptionPower: number; batterySOC: number };
 type AristonReading = {
   temperature: number;
+  reqTemp: number;
   eco: boolean;
   token: string;
   gateway: string;
@@ -50,6 +60,8 @@ type AristonReading = {
 const DEYE_API = "https://eu1-developer.deyecloud.com/v1.0";
 const ARISTON_API = "https://www.ariston-net.remotethermo.com/api/v2";
 const COOLDOWN_MS = 10 * 60 * 1000;
+const NET_SURPLUS_THRESHOLD_W = 500;
+const BATTERY_SOC_THRESHOLD = 95;
 const MADRID_HOUR = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/Madrid",
   hour: "2-digit",
@@ -77,6 +89,12 @@ function logResult(
     checkedAt: new Date(checkedTime).toISOString(),
     source,
     ...readings,
+    thresholds: {
+      ecoAtReqTemp: true,
+      netSurplusAboveW: NET_SURPLUS_THRESHOLD_W,
+      batterySOCAbovePercent: BATTERY_SOC_THRESHOLD,
+      manualModeBelowReqTemp: true,
+    },
     outcome,
     reason,
     ...(status === undefined ? {} : { status }),
@@ -184,10 +202,11 @@ async function getDeyeReading(env: WorkerEnv): Promise<DeyeReading> {
   );
   if (latest.success !== true) throw new StepError("deye_latest");
   const generationPower = numberField(latest, "generationPower", "deye_latest");
+  const consumptionPower = numberField(latest, "consumptionPower", "deye_latest");
   const batterySOC = numberField(latest, "batterySOC", "deye_latest");
-  if (generationPower < 0 || batterySOC < 0 || batterySOC > 100)
+  if (generationPower < 0 || consumptionPower < 0 || batterySOC < 0 || batterySOC > 100)
     throw new StepError("deye_latest");
-  return { generationPower, batterySOC };
+  return { generationPower, consumptionPower, batterySOC };
 }
 
 async function getAristonReading(env: WorkerEnv): Promise<AristonReading> {
@@ -217,10 +236,12 @@ async function getAristonReading(env: WorkerEnv): Promise<AristonReading> {
   );
   if (typeof thermo.eco !== "boolean") throw new StepError("ariston_reading");
   const temperature = numberField(thermo, "temp", "ariston_reading");
-  if (temperature < 0 || temperature > 100)
+  const reqTemp = numberField(thermo, "reqTemp", "ariston_reading");
+  if (temperature < 0 || temperature > 100 || reqTemp < 0 || reqTemp > 100)
     throw new StepError("ariston_reading");
   return {
     temperature: temperature,
+    reqTemp,
     eco: thermo.eco,
     token,
     gateway,
@@ -270,11 +291,12 @@ export async function runEnergyCheck(
     if (aristonResult.status === "rejected") throw aristonResult.reason;
     const ariston = aristonResult.value;
     readings.temperature = ariston.temperature;
+    readings.reqTemp = ariston.reqTemp;
     readings.eco = ariston.eco;
 
-    if (ariston.temperature >= 72) {
+    if (ariston.temperature >= ariston.reqTemp) {
       if (ariston.eco) {
-        return logResult(checkedTime, source, readings, "skipped", "already_eco_at_72c");
+        return logResult(checkedTime, source, readings, "skipped", "already_eco_at_req_temp");
       }
       if (env.DRY_RUN === "true") {
         return logResult(checkedTime, source, readings, "dry_run", "would_enable_eco");
@@ -285,11 +307,13 @@ export async function runEnergyCheck(
 
     if (deyeResult.status === "rejected") throw deyeResult.reason;
     const deye = deyeResult.value;
-    if (deye.generationPower <= 1500) {
-      return logResult(checkedTime, source, readings, "skipped", "solar_at_or_below_1500w");
+    const netSurplus = deye.generationPower - deye.consumptionPower;
+    readings.netSurplus = netSurplus;
+    if (netSurplus <= NET_SURPLUS_THRESHOLD_W) {
+      return logResult(checkedTime, source, readings, "skipped", "net_surplus_at_or_below_500w");
     }
     // The 90-95% gap is intentionally conservative: only above 95% can act.
-    if (deye.batterySOC <= 95) {
+    if (deye.batterySOC <= BATTERY_SOC_THRESHOLD) {
       return logResult(
         checkedTime,
         source,
@@ -298,8 +322,8 @@ export async function runEnergyCheck(
         "battery_at_or_below_95pct",
       );
     }
-    if (ariston.temperature >= 64) {
-      return logResult(checkedTime, source, readings, "skipped", "water_at_or_above_64c");
+    if (ariston.temperature >= ariston.reqTemp) {
+      return logResult(checkedTime, source, readings, "skipped", "water_at_or_above_req_temp");
     }
     if (!ariston.eco) {
       return logResult(checkedTime, source, readings, "skipped", "eco_disabled");
