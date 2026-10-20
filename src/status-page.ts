@@ -35,6 +35,7 @@ export const STATUS_PAGE = `<!doctype html>
       would_set_mode_1: 'Dry run: would set heating mode to 1',
       already_eco_at_req_temp: 'Water is at or above reqTemp; Eco mode is already on',
       water_at_or_above_req_temp: 'Water is at or above reqTemp; manual mode is not needed',
+      outside_manual_mode_hours: 'Outside manual-mode hours (09:00–19:00 Madrid time)',
       net_surplus_at_or_below_500w: 'Net solar surplus is 500 W or lower',
       battery_at_or_below_95pct: 'Battery charge is 95% or lower',
       eco_disabled: 'Eco mode is off', outside_day_hours: 'Outside scheduled daytime hours',
@@ -64,6 +65,7 @@ export const STATUS_PAGE = `<!doctype html>
         if (item.reqTemp !== undefined) addRow('Eco threshold (reqTemp)', item.reqTemp + ' C');
         addRow('Manual mode battery threshold', '> ' + (item.thresholds?.batterySOCAbovePercent ?? 95) + '%');
         addRow('Manual mode temperature threshold', 'Below reqTemp (' + item.reqTemp + ' C)');
+        addRow('Manual mode hours', (item.thresholds?.manualModeStartHourMadrid ?? 9) + ':00–' + (item.thresholds?.manualModeEndHourMadridExclusive ?? 19) + ':00 Madrid time');
         if (item.eco !== undefined) addRow('Eco mode', item.eco ? 'On' : 'Off');
       } else addRow('Status', 'No check recorded yet');
       if (status.nextAllowedAt) addRow('Next allowed', localTime(status.nextAllowedAt));

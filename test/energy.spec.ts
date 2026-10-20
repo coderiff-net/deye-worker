@@ -85,6 +85,12 @@ describe('scheduled energy check', () => {
 		expect(JSON.parse(String(auth?.init.body)).password).toBe(env.DEYE_PASSWORD);
 	});
 
+	it('does not set manual mode outside 09:00–19:00 Madrid time', async () => {
+		const calls = mockApis(1501, 96, 63, true);
+		await run(Date.UTC(2026, 0, 15, 7, 0)); // 08:00 in Madrid
+		expect(calls.some((call) => call.url.endsWith('/mode'))).toBe(false);
+	});
+
 	it.each([
 		[1000, 96, 63, true, 500],
 		[1501, 95, 63, true],

@@ -34,6 +34,8 @@ type CheckResult = Readings & {
     netSurplusAboveW: number;
     batterySOCAbovePercent: number;
     manualModeBelowReqTemp: true;
+    manualModeStartHourMadrid: number;
+    manualModeEndHourMadridExclusive: number;
   };
   status?: number;
 };
@@ -62,6 +64,8 @@ const ARISTON_API = "https://www.ariston-net.remotethermo.com/api/v2";
 const COOLDOWN_MS = 10 * 60 * 1000;
 const NET_SURPLUS_THRESHOLD_W = 500;
 const BATTERY_SOC_THRESHOLD = 95;
+const MANUAL_MODE_START_HOUR_MADRID = 9;
+const MANUAL_MODE_END_HOUR_MADRID_EXCLUSIVE = 19;
 const MADRID_HOUR = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/Madrid",
   hour: "2-digit",
@@ -94,6 +98,8 @@ function logResult(
       netSurplusAboveW: NET_SURPLUS_THRESHOLD_W,
       batterySOCAbovePercent: BATTERY_SOC_THRESHOLD,
       manualModeBelowReqTemp: true,
+      manualModeStartHourMadrid: MANUAL_MODE_START_HOUR_MADRID,
+      manualModeEndHourMadridExclusive: MANUAL_MODE_END_HOUR_MADRID_EXCLUSIVE,
     },
     outcome,
     reason,
@@ -324,6 +330,13 @@ export async function runEnergyCheck(
     }
     if (ariston.temperature >= ariston.reqTemp) {
       return logResult(checkedTime, source, readings, "skipped", "water_at_or_above_req_temp");
+    }
+    const madridHour = Number(MADRID_HOUR.format(new Date(checkedTime)));
+    if (
+      madridHour < MANUAL_MODE_START_HOUR_MADRID ||
+      madridHour >= MANUAL_MODE_END_HOUR_MADRID_EXCLUSIVE
+    ) {
+      return logResult(checkedTime, source, readings, "skipped", "outside_manual_mode_hours");
     }
     if (!ariston.eco) {
       return logResult(checkedTime, source, readings, "skipped", "eco_disabled");
